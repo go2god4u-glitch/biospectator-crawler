@@ -372,9 +372,9 @@ PAGES_URL = "https://go2god4u-glitch.github.io/KTH_bionews_morning/"
 
 def send_email(target_dates: list[str], article_count: int):
     """
-    GitHub Pages 링크를 이메일로 발송
-    - HTML 전체 대신 링크 버튼만 전송 → Gmail 용량/렌더링 문제 없음
-    - 링크 클릭 시 브라우저에서 열려 모든 내비게이션 정상 작동
+    이메일 발송: 상단에 링크 버튼 + 하단에 전체 기사 내용 포함
+    - 링크: 브라우저에서 열어 완전한 내비게이션 사용
+    - 본문: 이메일에서 바로 훑어볼 수 있도록 CSS 인라인화
     """
     gmail_from = os.getenv("GMAIL_FROM")
     app_pw     = os.getenv("GMAIL_APP_PASSWORD")
@@ -387,19 +387,25 @@ def send_email(target_dates: list[str], article_count: int):
     date_label = " / ".join(target_dates)
     subject    = f"[BioSpectator] {date_label} 키워드 리포트 ({article_count}건)"
 
-    html_body = f"""
-    <div style="font-family:'Malgun Gothic',sans-serif;max-width:500px;margin:40px auto;text-align:center;">
-      <h2 style="color:#1a3a5c;">BioSpectator 키워드 리포트</h2>
-      <p style="color:#555;">{date_label} &nbsp;|&nbsp; 총 {article_count}건</p>
+    # 상단 링크 버튼 + 구분선
+    header = f"""
+    <div style="font-family:'Malgun Gothic',sans-serif;text-align:center;padding:24px;background:#1a3a5c;">
+      <span style="font-size:18px;font-weight:bold;color:#7ecfff;">BioSpectator 키워드 리포트</span>
+      <span style="color:#aac;font-size:12px;margin-left:16px;">{date_label} &nbsp;|&nbsp; 총 {article_count}건</span><br><br>
       <a href="{PAGES_URL}" target="_blank"
-         style="display:inline-block;margin-top:20px;padding:14px 32px;background:#0077cc;
-                color:#fff;text-decoration:none;border-radius:6px;font-size:16px;font-weight:bold;">
-        📰 오늘 리포트 보기
+         style="display:inline-block;padding:12px 28px;background:#0077cc;color:#fff;
+                text-decoration:none;border-radius:6px;font-size:15px;font-weight:bold;">
+        📰 브라우저에서 열기 (내비게이션 포함)
       </a>
-      <p style="margin-top:24px;font-size:12px;color:#aaa;">
-        키워드: {' | '.join(KEYWORDS)}
-      </p>
-    </div>"""
+    </div>
+    <hr style="border:none;border-top:3px solid #1a3a5c;margin:0;">"""
+
+    # 기사 본문 HTML 로드 후 CSS 인라인화
+    with open("docs/index.html", "r", encoding="utf-8") as f:
+        article_html = f.read()
+    article_html = css_inline.inline(article_html)
+
+    html_body = header + article_html
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
