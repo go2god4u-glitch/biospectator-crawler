@@ -327,7 +327,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: 'Malgun Gothic', sans-serif; background: #f4f6f9; color: #222; }}
-  .top-bar {{ background: #1a3a5c; color: #fff; padding: 10px 24px; font-size: 12px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }}
+  .top-bar {{ background: #1a3a5c; color: #fff; padding: 10px 24px; font-size: 12px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; }}
   .top-bar .logo {{ font-size: 15px; font-weight: bold; color: #7ecfff; margin-right: 8px; }}
   .top-bar .meta {{ color: #aac; }}
   .top-bar .links {{ display: flex; gap: 8px; flex-wrap: wrap; }}
