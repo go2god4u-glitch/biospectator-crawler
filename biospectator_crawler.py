@@ -232,6 +232,18 @@ def crawl_article(session: requests.Session, info: dict) -> dict:
         return {"키워드": info["키워드"], "제목": "", "날짜": info.get("날짜", ""), "본문": f"[오류] {e}", "유료기사": "", "URL": url}
 
 
+def highlight_keywords(body_html: str, keywords: list[str]) -> str:
+    """본문 HTML에서 키워드를 형광 <mark>로 강조. HTML 태그 내부는 건드리지 않음"""
+    for kw in keywords:
+        variants = {kw}
+        if re.search(r'[a-zA-Z]', kw):
+            variants |= {kw.lower(), kw.upper()}  # 영어는 대/소문자 모두
+        for v in sorted(variants, key=len, reverse=True):  # 긴 것 먼저 치환
+            pattern = f'({re.escape(v)})(?![^<]*>)'  # HTML 태그 안쪽 제외
+            body_html = re.sub(pattern, r'<mark>\1</mark>', body_html, flags=re.IGNORECASE)
+    return body_html
+
+
 def save_html(articles: list[dict], target_dates: list[str]) -> str:
     """
     HTML 리포트 저장 (biospectator_YYYYMMDD_HHMM.html)
@@ -257,7 +269,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
     for idx, (kw, arts) in enumerate(by_keyword.items()):
         cards = ""
         for a in arts:
-            body_html  = a["본문"] if a["본문"] else "<span class='paid'>유료기사 - 전문 열람 불가</span>"
+            body_html  = highlight_keywords(a["본문"], KEYWORDS) if a["본문"] else "<span class='paid'>유료기사 - 전문 열람 불가</span>"
             paid_badge = '<span class="badge">유료</span>' if a["유료기사"] else ""
             cards += f"""
             <article class="card">
@@ -312,6 +324,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   .card-footer {{ padding: 10px 20px; background: #f8f9fb; font-size: 13px; border-radius: 0 0 8px 8px; }}
   .card-footer a {{ color: #0077cc; text-decoration: none; }}
   .badge {{ font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #fff0f0; color: #c00; border: 1px solid #fcc; margin-left: 8px; vertical-align: middle; }}
+  mark {{ background: #ffff00; padding: 0 2px; font-style: normal; }}
   .paid {{ color: #999; font-style: italic; }}
   .no-articles {{ color: #999; font-size: 14px; padding: 20px; }}
 </style>
