@@ -115,8 +115,9 @@ def get_target_dates() -> list[str]:
     today = datetime.now()
     dates = [today.strftime("%Y-%m-%d"),
              (today - timedelta(days=1)).strftime("%Y-%m-%d")]  # 항상 어제 포함
-    if today.weekday() == 0:  # 월요일: 토/일 추가
+    if today.weekday() == 0:  # 월요일: 금/토/일 추가
         dates.append((today - timedelta(days=2)).strftime("%Y-%m-%d"))  # 토
+        dates.append((today - timedelta(days=3)).strftime("%Y-%m-%d"))  # 금
     return list(dict.fromkeys(dates))  # 중복 제거 (순서 유지)
 
 
