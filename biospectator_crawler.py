@@ -98,14 +98,14 @@ SEARCH_URL = BASE_URL + "/section/search_list?searchkey={keyword}&page={page}"
 
 # 키워드 추가는 여기에만 하면 됨. 영어 포함 시 대/소문자 자동 검색
 KEYWORDS = [
+    "DA-1726",
+    "Vanoglipel",
+    "메타비아",
     "glp-1",
     "Amylin",
+    "GPR119",
     "동아ST",
     "노보노디스크",
-    "메타비아",
-    "GPR119",
-    "Vanoglipel",
-    "DA-1726",
 ]
 
 # 키워드 별칭: 하나만 입력해도 묶인 모든 단어로 검색
