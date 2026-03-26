@@ -301,7 +301,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
             cards += f"""
             <article class="card">
                 <div class="card-header">
-                    <h2><a href="{a['URL']}" target="_blank">{a['제목']}</a>{paid_badge} <a href="#" onclick="window.scrollTo({{top:0,behavior:'smooth'}});return false;" class="top-btn">▲ 키워드</a></h2>
+                    <h2><a href="{a['URL']}" target="_blank">{a['제목']}</a>{paid_badge} <a href="#top" class="top-btn">▲ 키워드</a></h2>
                     <span class="date">{a['날짜']}</span>
                 </div>
                 <div class="card-body">{body_html}</div>
@@ -357,8 +357,8 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   .no-articles {{ color: #999; font-size: 14px; padding: 20px; }}
 </style>
 </head>
-<body id="top">
-<div class="top-bar">
+<body>
+<div id="top" class="top-bar">
   <span class="logo">BioSpectator</span>
   <span class="meta">{generated} &nbsp;|&nbsp; {date_label} &nbsp;|&nbsp; 전체 {total}건</span>
   <div class="links">{header_links}</div>
