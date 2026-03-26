@@ -5,6 +5,9 @@ on:
     - cron: '30 0 * * 1-5'  # 평일 오전 9:30 KST (UTC+9 → UTC 00:30)
   workflow_dispatch:          # 수동 실행 버튼 (테스트용)
 
+permissions:
+  contents: write
+
 jobs:
   crawl:
     runs-on: ubuntu-latest
