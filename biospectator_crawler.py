@@ -67,7 +67,10 @@ BioSpectator 키워드 크롤러  |  KTH_bionews_morning
   ├── .env                       ← 로컬 전용 로그인 정보 (GitHub에 올라가지 않음)
   ├── .gitignore                 ← .env, *.html 제외 / docs/index.html 예외 허용
   ├── docs/
-  │   └── index.html             ← 매일 생성되는 리포트 (GitHub Pages 서빙)
+  │   └── index.html             ← 매일 덮어씌워지는 리포트 (항상 최신만 유지)
+  │                                 * 과거 리포트 별도 보관 불필요
+  │                                 * 받은 이메일 본문에 기사 전문이 포함되므로
+  │                                   이메일 받은편지함 자체가 날짜별 이력 역할을 함
   └── .github/workflows/
       └── daily-crawler.yml      ← 스케줄 + 커밋/푸시 자동화
 
