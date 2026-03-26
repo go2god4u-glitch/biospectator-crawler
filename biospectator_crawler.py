@@ -180,13 +180,14 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
         if a["URL"] not in {x["URL"] for x in by_keyword[a["키워드"]]}:
             by_keyword[a["키워드"]].append(a)
 
+    # onclick 스크롤: 이메일 클라이언트가 #anchor 링크를 막는 경우 대비
     section_links = "\n".join(
-        f'<li><a href="#kw-{k}">{k.upper()} ({len(v)}건)</a></li>'
-        for k, v in by_keyword.items()
+        f'<li><a href="#" onclick="var el=document.getElementById(\'kw-{i}\');if(el){{el.scrollIntoView({{behavior:\'smooth\'}});}};return false;">{k.upper()} ({len(v)}건)</a></li>'
+        for i, (k, v) in enumerate(by_keyword.items())
     )
 
     sections_html = ""
-    for kw, arts in by_keyword.items():
+    for idx, (kw, arts) in enumerate(by_keyword.items()):
         cards = ""
         for a in arts:
             body_html  = a["본문"] if a["본문"] else "<span class='paid'>유료기사 - 전문 열람 불가</span>"
@@ -201,7 +202,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
                 <div class="card-footer"><a href="{a['URL']}" target="_blank">원문 보기 &rarr;</a></div>
             </article>"""
         sections_html += f"""
-        <section id="kw-{kw}">
+        <section id="kw-{idx}">
             <h1 class="section-title">#{kw.upper()}</h1>
             {cards}
         </section>"""
@@ -236,7 +237,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   .date {{ font-size: 12px; color: #888; margin-top: 4px; display: block; }}
   .card-body {{ padding: 16px 20px; font-size: 14px; line-height: 1.9; color: #333; }}
   .card-body h4 {{ font-size: 16px; font-weight: bold; color: #333; background: #f0f4f8; border-left: 4px solid #0077cc; padding: 12px 16px; margin: 12px 0 16px; line-height: 1.8; }}
-  .card-body p {{ margin-bottom: 12px; }}
+  .card-body p {{ margin-bottom: 12px; white-space: pre-line; }}
   .card-body img {{ max-width: 100%; height: auto; margin: 8px 0; }}
   .card-footer {{ padding: 10px 20px; background: #f8f9fb; font-size: 13px; border-radius: 0 0 8px 8px; }}
   .card-footer a {{ color: #0077cc; text-decoration: none; }}
