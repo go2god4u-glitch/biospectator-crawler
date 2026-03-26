@@ -1,0 +1,30 @@
+2026-03-26T06:11:31.9587653Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-03-26T06:11:31.9588033Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-03-26T06:11:31.9588440Z   BIOS_ID: ***
+2026-03-26T06:11:31.9588669Z   BIOS_PW: ***
+2026-03-26T06:11:31.9588883Z   GMAIL_FROM: ***
+2026-03-26T06:11:31.9589119Z   GMAIL_APP_PASSWORD: ***
+2026-03-26T06:11:31.9589368Z   GMAIL_TO: ***
+2026-03-26T06:11:31.9589591Z ##[endgroup]
+2026-03-26T06:11:31.9759556Z   File "/home/runner/work/biospectator-crawler/biospectator-crawler/biospectator_crawler.py", line 63
+2026-03-26T06:11:31.9765005Z     """
+2026-03-26T06:11:31.9767121Z        ^
+2026-03-26T06:11:31.9768223Z SyntaxError: (unicode error) 'unicodeescape' codec can't decode bytes in position 619-620: truncated \UXXXXXXXX escape
+2026-03-26T06:11:31.9800607Z ##[error]Process completed with exit code 1.
+2026-03-26T06:11:31.9909313Z Post job cleanup.
+2026-03-26T06:11:32.0907904Z [command]/usr/bin/git version
+2026-03-26T06:11:32.0950944Z git version 2.53.0
+2026-03-26T06:11:32.0999805Z Temporarily overriding HOME='/home/runner/work/_temp/e8f6846d-a2bf-4ed2-9945-dd20b82d57db' before making global git config changes
+2026-03-26T06:11:32.1001555Z Adding repository directory to the temporary git global config as a safe directory
+2026-03-26T06:11:32.1007681Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/biospectator-crawler/biospectator-crawler
+2026-03-26T06:11:32.1058334Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-03-26T06:11:32.1095140Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-03-26T06:11:32.1361582Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-03-26T06:11:32.1388439Z http.https://github.com/.extraheader
+2026-03-26T06:11:32.1403738Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-03-26T06:11:32.1441279Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-03-26T06:11:32.1698825Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-03-26T06:11:32.1734375Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-03-26T06:11:32.2093900Z Cleaning up orphan processes
+2026-03-26T06:11:32.2352107Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-python@v5. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

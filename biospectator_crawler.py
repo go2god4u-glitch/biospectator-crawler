@@ -279,7 +279,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
     - 키워드/섹션 제목은 대문자 표시
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    html_path = f"biospectator_{timestamp}.html"
+    html_path = "docs/index.html"  # GitHub Pages로 서빙되는 고정 경로
 
     by_keyword = defaultdict(list)
     for a in articles:
@@ -367,28 +367,38 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
     return html_path
 
 
-def send_email(html_path: str, target_dates: list[str], article_count: int):
+PAGES_URL = "https://go2god4u-glitch.github.io/biospectator-crawler/"
+
+def send_email(target_dates: list[str], article_count: int):
     """
-    완성된 HTML 리포트를 Gmail로 발송
-    - Gmail SMTP (포트 587, TLS) 사용
-    - .env의 GMAIL_FROM / GMAIL_APP_PASSWORD / GMAIL_TO 필요
-    - 앱 비밀번호 미설정 시 발송 건너뜀
+    GitHub Pages 링크를 이메일로 발송
+    - HTML 전체 대신 링크 버튼만 전송 → Gmail 용량/렌더링 문제 없음
+    - 링크 클릭 시 브라우저에서 열려 모든 내비게이션 정상 작동
     """
     gmail_from = os.getenv("GMAIL_FROM")
     app_pw     = os.getenv("GMAIL_APP_PASSWORD")
     gmail_to   = os.getenv("GMAIL_TO")
 
-    if not app_pw or app_pw == "여기에_앱비밀번호_입력":
+    if not app_pw:
         print("[SKIP] Gmail 앱 비밀번호 미설정 → 이메일 발송 건너뜀")
         return
 
-    # HTML 파일 로드 후 CSS 인라인화 (Gmail은 <style> 블록을 제거하므로 필수)
-    with open(html_path, "r", encoding="utf-8") as f:
-        html_body = f.read()
-    html_body = css_inline.inline(html_body)
-
     date_label = " / ".join(target_dates)
     subject    = f"[BioSpectator] {date_label} 키워드 리포트 ({article_count}건)"
+
+    html_body = f"""
+    <div style="font-family:'Malgun Gothic',sans-serif;max-width:500px;margin:40px auto;text-align:center;">
+      <h2 style="color:#1a3a5c;">BioSpectator 키워드 리포트</h2>
+      <p style="color:#555;">{date_label} &nbsp;|&nbsp; 총 {article_count}건</p>
+      <a href="{PAGES_URL}" target="_blank"
+         style="display:inline-block;margin-top:20px;padding:14px 32px;background:#0077cc;
+                color:#fff;text-decoration:none;border-radius:6px;font-size:16px;font-weight:bold;">
+        📰 오늘 리포트 보기
+      </a>
+      <p style="margin-top:24px;font-size:12px;color:#aaa;">
+        키워드: {' | '.join(KEYWORDS)}
+      </p>
+    </div>"""
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -455,7 +465,7 @@ def main():
     print(f"  전체: {len(articles)}건 (전문: {len(articles)-paid}건 / 유료: {paid}건)")
 
     # 이메일 발송
-    send_email(html_path, target_dates, len(articles))
+    send_email(target_dates, len(articles))
 
 
 if __name__ == "__main__":
