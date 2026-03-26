@@ -1,7 +1,65 @@
 """
+================================================================================
 BioSpectator 키워드 검색 크롤러
-키워드로 검색 → 오늘 날짜 기사만 전문 크롤링 → HTML 리포트 저장
-사용법: python biospectator_crawler.py
+================================================================================
+
+■ 제작 환경
+  - Claude Code (claude.ai 앱 내 코드 탭, 터미널 포함)
+  - Windows 10 로컬 PC에서 개발 및 테스트
+  - 파일 위치: C:\Users\user\test_project\biospectator\
+
+■ 동작 방식
+  - KEYWORDS 목록의 키워드로 BioSpectator 검색
+  - 오늘 + 어제 날짜 기사만 전문 크롤링 (월요일은 토/일 추가)
+  - 결과를 HTML 리포트로 저장 후 이메일 발송
+
+■ 배포 방식 (GitHub Actions)
+  - GitHub 저장소: https://github.com/go2god4u-glitch/biospectator-crawler
+  - 저장소는 Private으로 설정 (코드/크롤링 로직 보호)
+  - .github/workflows/daily-crawler.yml 에 스케줄 정의
+  - 평일 오전 9:30 KST (UTC 00:30) 자동 실행
+  - 로그인 정보/이메일 계정은 GitHub Secrets에 암호화 저장
+    (저장소 Settings → Secrets and variables → Actions 에서 확인/수정 가능)
+  - 수동 실행: GitHub Actions 탭 → Run workflow 버튼
+
+■ 나중에 코드 수정이 필요할 때
+  ─────────────────────────────────────────────────────
+  1. Claude 앱(claude.ai) 실행 → 이 대화 열기
+     (또는 새 대화에서 "이 파일 열어줘" 후 파일 경로 전달)
+
+  2. 파일 불러오기:
+     Claude Code 탭(터미널)에서 자동으로 로컬 파일에 접근 가능
+     별도로 불러올 필요 없이 바로 "~~ 수정해줘" 라고 요청하면 됨
+     (파일 경로: C:\Users\user\test_project\biospectator\biospectator_crawler.py)
+
+  3. 수정 요청 예시:
+     - "키워드에 '삼성바이오로직스' 추가해줘"
+     - "이메일 수신자를 xxx@donga.co.kr 로 바꿔줘"
+     - "월~금 9:30 → 8:00으로 실행 시간 바꿔줘"
+
+  4. 수정 후 GitHub 배포:
+     Claude가 자동으로 git commit + push 처리
+     push 완료 즉시 GitHub Actions에 반영됨 (별도 작업 불필요)
+
+  5. 이메일 수신자/발신자 변경 시:
+     GitHub Secrets에서 GMAIL_TO 값을 직접 수정
+     → 저장소 Settings → Secrets → GMAIL_TO → Update
+     (또는 Claude에게 "이메일 수신자 바꿔줘"라고 요청하면 API로 처리)
+
+  6. 키워드만 추가할 때는 아래 KEYWORDS 리스트에만 추가하면 됨
+  ─────────────────────────────────────────────────────
+
+■ 주요 파일 구조
+  biospectator/
+  ├── biospectator_crawler.py   ← 메인 크롤러 (이 파일)
+  ├── requirements.txt          ← Python 패키지 목록
+  ├── .env                      ← 로그인/이메일 정보 (로컬 전용, GitHub에 올라가지 않음)
+  ├── .gitignore                ← .env, *.html 제외 설정
+  └── .github/
+      └── workflows/
+          └── daily-crawler.yml ← GitHub Actions 스케줄 정의
+
+================================================================================
 """
 
 import requests
