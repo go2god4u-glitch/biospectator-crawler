@@ -83,6 +83,7 @@ from datetime import datetime, timedelta
 import time
 import re
 import os
+import json
 import smtplib
 import css_inline
 from email.mime.multipart import MIMEMultipart
@@ -389,7 +390,29 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
     return html_path
 
 
-PAGES_URL = "https://go2god4u-glitch.github.io/KTH_bionews_morning/"
+PAGES_URL      = "https://go2god4u-glitch.github.io/KTH_bionews_morning/"
+SENT_URLS_FILE = "docs/sent_urls.json"  # 발송된 기사 URL 이력 (중복 방지용)
+
+
+def load_sent_urls() -> set:
+    """이미 발송된 기사 URL 목록 로드. 파일 없으면 빈 set 반환"""
+    if os.path.exists(SENT_URLS_FILE):
+        with open(SENT_URLS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return set(data.get("urls", []))
+    return set()
+
+
+def save_sent_urls(new_urls: list[str], existing: set):
+    """
+    발송된 URL 저장. 7일치만 보관 (무한 증가 방지)
+    - 기존 이력 + 신규 URL 합산 후 최신 500건만 유지
+    """
+    all_urls = list(existing | set(new_urls))
+    all_urls = all_urls[-500:]  # 최대 500건 (약 7일치)
+    os.makedirs("docs", exist_ok=True)
+    with open(SENT_URLS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"urls": all_urls, "updated": datetime.now().isoformat()}, f, ensure_ascii=False, indent=2)
 
 def send_email(target_dates: list[str], article_count: int):
     """
@@ -478,6 +501,18 @@ def main():
         print("오늘 날짜에 해당하는 기사가 없습니다.")
         return
 
+    # 이미 발송한 기사 제외 (날짜 중복으로 인한 재발송 방지)
+    sent_urls = load_sent_urls()
+    before    = len(all_infos)
+    all_infos = [i for i in all_infos if i["URL"] not in sent_urls]
+    skipped   = before - len(all_infos)
+    if skipped:
+        print(f"  → 이미 발송된 기사 {skipped}건 제외")
+
+    if not all_infos:
+        print("새로운 기사가 없습니다 (모두 이미 발송됨).")
+        return
+
     print(f"\n총 {len(all_infos)}건 전문 크롤링 시작...")
 
     articles = []
@@ -491,6 +526,9 @@ def main():
     paid = sum(1 for a in articles if a["유료기사"])
     print(f"\n[OK] 저장 완료: {html_path}")
     print(f"  전체: {len(articles)}건 (전문: {len(articles)-paid}건 / 유료: {paid}건)")
+
+    # 발송된 URL 이력 저장 (다음 실행 때 중복 제외에 사용)
+    save_sent_urls([a["URL"] for a in articles], sent_urls)
 
     # 이메일 발송
     send_email(target_dates, len(articles))
