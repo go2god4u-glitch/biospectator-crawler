@@ -299,7 +299,10 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
                     <span class="date">{a['날짜']}</span>
                 </div>
                 <div class="card-body">{body_html}</div>
-                <div class="card-footer"><a href="{a['URL']}" target="_blank">원문 보기 &rarr;</a></div>
+                <div class="card-footer">
+                    <a href="{a['URL']}" target="_blank">원문 보기 &rarr;</a>
+                    &nbsp;&nbsp;<a href="#kw-nav" class="nav-btn">▲ 키워드 목록</a>
+                </div>
             </article>"""
         sections_html += f"""
         <section id="kw-{idx}">
@@ -344,6 +347,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   .card-body img {{ max-width: 100%; height: auto; margin: 8px 0; }}
   .card-footer {{ padding: 10px 20px; background: #f8f9fb; font-size: 13px; border-radius: 0 0 8px 8px; }}
   .card-footer a {{ color: #0077cc; text-decoration: none; }}
+  .nav-btn {{ font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e8f0fe; color: #1a73e8; border: 1px solid #c5d8f8; }}
   .badge {{ font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #fff0f0; color: #c00; border: 1px solid #fcc; margin-left: 8px; vertical-align: middle; }}
   mark {{ background: #ffff00; padding: 0 2px; font-style: normal; }}
   .paid {{ color: #999; font-style: italic; }}
@@ -351,7 +355,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
 </style>
 </head>
 <body>
-<div id="top" class="top-bar">
+<div id="kw-nav" class="top-bar">
   <span class="logo">BioSpectator</span>
   <span class="meta">{generated} &nbsp;|&nbsp; {date_label} &nbsp;|&nbsp; 전체 {total}건</span>
   <div class="links">{header_links}</div>
