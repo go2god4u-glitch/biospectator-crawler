@@ -128,31 +128,43 @@ def build_search_variants(kw: str) -> list[str]:
 
 def deduplicate_across_sites(articles: list[dict]) -> list[dict]:
     """
-    사이트 간 동일 기사 제거
+    사이트 간 동일 기사 그룹화
     - 제목 유사도 80% 이상이면 같은 기사로 판단
-    - SITES 등록 순서 우선 (앞 사이트 기사 유지, 뒤 사이트 기사 제거)
+    - SITES 등록 순서 우선 기사를 대표로 유지
+    - 중복 기사는 제거하되, 대표 기사의 'also_in' 필드에 출처·URL·제목 기록
+      → 리포트 카드 하단에 "다른 사이트에서도 보도" 섹션으로 표시
     """
     import difflib
 
     def normalize(text: str) -> str:
-        """비교용 정규화: 특수문자·공백 제거, 소문자화"""
         return re.sub(r'[^\w가-힣]', '', text.lower())
 
-    site_order = [s["name"] for s in SITES]
+    site_order  = [s["name"] for s in SITES]
     sorted_arts = sorted(articles, key=lambda a: site_order.index(a["출처"]) if a["출처"] in site_order else 999)
 
     kept = []
     for article in sorted_arts:
-        is_dup = False
+        matched = None
         for kept_art in kept:
             if kept_art["출처"] == article["출처"]:
-                continue  # 같은 사이트는 URL로 이미 중복 제거됨
+                continue
             sim = difflib.SequenceMatcher(None, normalize(article["제목"]), normalize(kept_art["제목"])).ratio()
             if sim >= 0.8:
-                is_dup = True
-                print(f"  [중복제거] ({article['출처']}) {article['제목'][:40]} → ({kept_art['출처']}) 기사와 동일")
+                matched = kept_art
                 break
-        if not is_dup:
+        if matched:
+            # 대표 기사의 also_in에 중복 출처 추가
+            matched.setdefault("also_in", []).append({
+                "출처": article["출처"],
+                "URL":  article["URL"],
+                "제목": article["제목"],
+                "_badge_color":  article["_badge_color"],
+                "_badge_bg":     article["_badge_bg"],
+                "_badge_border": article["_badge_border"],
+            })
+            print(f"  [중복감지] '{article['제목'][:40]}' → {article['출처']}에서도 보도")
+        else:
+            article.setdefault("also_in", [])
             kept.append(article)
 
     return kept
@@ -422,6 +434,19 @@ SITES = [
 # HTML 리포트 생성
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _render_also_in(also_in: list[dict]) -> str:
+    """카드 하단 '다른 사이트에서도 보도' 섹션 HTML 생성"""
+    if not also_in:
+        return ""
+    links = " &nbsp;·&nbsp; ".join(
+        f'<a href="{d["URL"]}" target="_blank" '
+        f'style="color:{d["_badge_color"]};text-decoration:none;font-weight:bold;">'
+        f'[{d["출처"]}] {d["제목"][:35]}{"…" if len(d["제목"]) > 35 else ""}</a>'
+        for d in also_in
+    )
+    return f'<div class="also-in">📌 다른 사이트에서도 보도: {links}</div>'
+
+
 def save_html(articles: list[dict], target_dates: list[str]) -> str:
     os.makedirs("docs", exist_ok=True)
 
@@ -451,7 +476,10 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
                     <span class="date">{a['날짜']}</span>
                 </div>
                 <div class="card-body">{body_html}</div>
-                <div class="card-footer"><a href="{a['URL']}" target="_blank">원문 보기 &rarr;</a></div>
+                <div class="card-footer">
+                    <a href="{a['URL']}" target="_blank">원문 보기 &rarr;</a>
+                    {_render_also_in(a.get("also_in", []))}
+                </div>
             </article>"""
         sections_html += f"""
         <section id="kw-{idx}">
@@ -498,6 +526,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   mark {{ background: #ffff00; padding: 0 2px; font-style: normal; }}
   .paid {{ color: #999; font-style: italic; }}
   .no-articles {{ color: #999; font-size: 14px; padding: 20px; }}
+  .also-in {{ margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; font-size: 12px; color: #666; }}
 </style>
 </head>
 <body>
