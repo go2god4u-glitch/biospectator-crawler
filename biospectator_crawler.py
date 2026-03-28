@@ -936,6 +936,32 @@ def send_email(target_dates: list[str], articles: list[dict]):
     date_label = " / ".join(target_dates)
     subject    = f"[바이오뉴스] {date_label} 키워드 리포트 ({len(articles)}건)"
 
+    # 0건일 때 간단 알림 이메일
+    if not articles:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = gmail_from
+        msg["To"]      = gmail_to
+        body = f"""
+        <div style="font-family:'Malgun Gothic',sans-serif;text-align:center;padding:40px;background:#f4f6f9;">
+          <div style="max-width:500px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,.1);">
+            <div style="font-size:18px;font-weight:bold;color:#1a3a5c;margin-bottom:16px;">바이오 키워드 리포트</div>
+            <div style="font-size:14px;color:#666;margin-bottom:8px;">{date_label}</div>
+            <div style="font-size:15px;color:#333;margin-top:24px;">오늘은 등록된 키워드 관련 새 기사가 없습니다.</div>
+            <div style="font-size:12px;color:#999;margin-top:12px;">크롤러는 정상 동작 중입니다.</div>
+          </div>
+        </div>"""
+        msg.attach(MIMEText(body, "html", "utf-8"))
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+                server.starttls()
+                server.login(gmail_from, app_pw)
+                server.send_message(msg)
+            print(f"[OK] 0건 알림 이메일 발송 → {gmail_to}")
+        except Exception as e:
+            print(f"[FAIL] 이메일 발송 실패: {e}")
+        return
+
     # email_body=False 사이트 안내 배너
     notice_lines = ""
     for site in SITES:
@@ -1057,6 +1083,7 @@ def main():
 
     if not all_infos:
         print("\n오늘 날짜에 해당하는 기사가 없습니다.")
+        send_email(target_dates, [])
         return
 
     # 중복 발송 제외
@@ -1067,6 +1094,7 @@ def main():
         print(f"\n  → 이미 발송된 기사 {before - len(all_infos)}건 제외")
     if not all_infos:
         print("새로운 기사가 없습니다 (모두 이미 발송됨).")
+        send_email(target_dates, [])
         return
 
     # 사이트별 건수 출력
