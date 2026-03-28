@@ -126,6 +126,38 @@ def build_search_variants(kw: str) -> list[str]:
     return variants
 
 
+def deduplicate_across_sites(articles: list[dict]) -> list[dict]:
+    """
+    사이트 간 동일 기사 제거
+    - 제목 유사도 80% 이상이면 같은 기사로 판단
+    - SITES 등록 순서 우선 (앞 사이트 기사 유지, 뒤 사이트 기사 제거)
+    """
+    import difflib
+
+    def normalize(text: str) -> str:
+        """비교용 정규화: 특수문자·공백 제거, 소문자화"""
+        return re.sub(r'[^\w가-힣]', '', text.lower())
+
+    site_order = [s["name"] for s in SITES]
+    sorted_arts = sorted(articles, key=lambda a: site_order.index(a["출처"]) if a["출처"] in site_order else 999)
+
+    kept = []
+    for article in sorted_arts:
+        is_dup = False
+        for kept_art in kept:
+            if kept_art["출처"] == article["출처"]:
+                continue  # 같은 사이트는 URL로 이미 중복 제거됨
+            sim = difflib.SequenceMatcher(None, normalize(article["제목"]), normalize(kept_art["제목"])).ratio()
+            if sim >= 0.8:
+                is_dup = True
+                print(f"  [중복제거] ({article['출처']}) {article['제목'][:40]} → ({kept_art['출처']}) 기사와 동일")
+                break
+        if not is_dup:
+            kept.append(article)
+
+    return kept
+
+
 def highlight_keywords(body_html: str) -> str:
     """본문 HTML에서 키워드(+별칭) 모두 형광 <mark>로 강조"""
     all_terms = set()
@@ -672,6 +704,12 @@ def main():
         articles.append(article)
         print(f"  ({i}/{len(all_infos)}) [{info['출처']}] {article['제목'][:50]}...")
         time.sleep(0.5)
+
+    # 사이트 간 중복 기사 제거
+    before   = len(articles)
+    articles = deduplicate_across_sites(articles)
+    if before - len(articles):
+        print(f"  → 사이트 간 중복 {before - len(articles)}건 제거")
 
     # HTML 저장
     html_path = save_html(articles, target_dates)
