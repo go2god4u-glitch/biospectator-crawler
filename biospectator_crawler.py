@@ -41,6 +41,17 @@
   4. 출처 뱃지 색상을 SITES에서 관리 → CSS 수정 불필요
   5. 이메일 본문 포함 여부를 email_body 플래그로 사이트별 설정
   ─────────────────────────────────────────────────────────────────────────────
+  2026-03-28  4개 사이트 추가 (바이오타임즈, 파마타임즈, 바이오인, KDDF)
+  ─────────────────────────────────────────────────────────────────────────────
+  6. make_newscms_search/crawl 팩토리 도입 → 동일 CMS(altlist 구조) 사이트 재사용
+     · 바이오타임즈(biotimes.co.kr) / 파마타임즈(pharmatimes.co.kr) 적용
+     · 날짜 형식: 리스트 MM-DD HH:MM → 기사 본문 YYYY.MM.DD 일치 확인
+  7. 바이오인(bioin.or.kr) 검색/크롤링 추가
+     · board.do?bid=tot_trend 전체 동향 게시판, 작성일 기준 날짜 필터
+  8. KDDF(kddf.org) 검색/크롤링 추가
+     · 서버 검색 없음 → 게시판 제목 키워드 매칭 후 기사 페이지에서 날짜 확인
+  9. kdra.or.kr: 도메인 만료(가비아 주차 페이지) 확인 → 추가 제외
+  ─────────────────────────────────────────────────────────────────────────────
 
 ================================================================================
 """
@@ -373,6 +384,313 @@ def thebio_crawl_article(session: requests.Session, info: dict) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 뉴스CMS 공통 팩토리  (바이오타임즈·파마타임즈 등 altlist 구조 동일 CMS)
+# POST /news/articleList.html + #article-view-content-div 방식
+# ══════════════════════════════════════════════════════════════════════════════
+
+def make_newscms_search(base_url: str, site_name: str):
+    """
+    altlist 구조 뉴스CMS 검색 함수 팩토리.
+    리스트 항목: li.altlist-text-item
+    날짜 위치:  .altlist-info-item 내 'MM-DD HH:MM' 형식
+    """
+    search_url = base_url + "/news/articleList.html"
+
+    def search_fn(session: requests.Session, keyword: str, target_dates: list[str]) -> list[dict]:
+        results, seen = [], set()
+        for page in range(1, 10):
+            resp = session.post(
+                search_url,
+                data={"sc_word": keyword, "page": page},
+                headers={**HEADERS, "Referer": base_url},
+                timeout=10,
+            )
+            soup = BeautifulSoup(resp.text, "html.parser")
+            found_any = stop = False
+            for li in soup.select("li.altlist-text-item"):
+                a_tag = li.select_one("h2.altlist-subject a[href*='articleView']") or \
+                        li.select_one("H2.altlist-subject a[href*='articleView']")
+                if not a_tag:
+                    continue
+                href = a_tag.get("href", "")
+                url  = base_url + href if href.startswith("/") else href
+                if url in seen:
+                    continue
+                seen.add(url)
+                date = ""
+                for item in li.select(".altlist-info-item"):
+                    m = re.search(r"(\d{2})-(\d{2})\s+\d{2}:\d{2}", item.get_text())
+                    if m:
+                        year = datetime.now().year
+                        date = f"{year}-{m.group(1)}-{m.group(2)}"
+                        break
+                if not date:
+                    continue
+                if date in target_dates:
+                    found_any = True
+                    results.append({"날짜": date, "URL": url})
+                elif date < min(target_dates):
+                    stop = True
+                    break
+            if stop or not found_any:
+                break
+            time.sleep(0.3)
+        print(f"  [{site_name}/{keyword}] {len(results)}건")
+        return results
+
+    return search_fn
+
+
+def make_newscms_crawl(base_url: str, site_name: str):
+    """altlist 구조 뉴스CMS 기사 크롤링 함수 팩토리. 본문은 thebio와 동일한 #article-view-content-div 사용."""
+
+    def crawl_fn(session: requests.Session, info: dict) -> dict:
+        url = info["URL"]
+        try:
+            resp    = session.get(url, headers={**HEADERS, "Referer": base_url}, timeout=10)
+            soup    = BeautifulSoup(resp.text, "html.parser")
+            title   = ""
+            for sel in ["h1.heading", "h2.heading", ".heading"]:
+                el = soup.select_one(sel)
+                if el and el.get_text(strip=True):
+                    title = el.get_text(strip=True)
+                    break
+            date    = info.get("날짜", "")
+            info_ul = soup.select_one("ul.infomation")
+            if info_ul:
+                m = re.search(r"입력\s+(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}:\d{2})", info_ul.get_text())
+                if m:
+                    date = f"{m.group(1)}-{m.group(2)}-{m.group(3)} {m.group(4)}"
+            else:
+                m = re.search(r"(\d{4})\.(\d{2})\.(\d{2})", resp.text)
+                if m:
+                    date = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+            body    = ""
+            body_el = soup.select_one("#article-view-content-div")
+            if body_el:
+                for tag in body_el.select("script, style, .ad, .related"):
+                    tag.decompose()
+                for c in body_el.find_all(string=lambda t: isinstance(t, Comment)):
+                    c.extract()
+                for tag in body_el.find_all(['p', 'div']):
+                    if not tag.get_text(strip=True) and not tag.find('img'):
+                        tag.decompose()
+                for tag in body_el.find_all(True):
+                    if tag.name == "img":
+                        tag.attrs = {k: v for k, v in {"src": tag.get("src", ""), "alt": tag.get("alt", "")}.items() if v}
+                    elif tag.name == "figcaption":
+                        tag.attrs = {}
+                    else:
+                        for attr in ["style", "class", "id"]:
+                            if tag.get(attr):
+                                del tag[attr]
+                body = str(body_el)
+            return {"제목": title, "날짜": date, "본문": body,
+                    "유료기사": "[유료]" if not body or len(body) < 100 else "", "URL": url}
+        except Exception as e:
+            return {"제목": "", "날짜": info.get("날짜", ""), "본문": f"[오류] {e}",
+                    "유료기사": "", "URL": url}
+
+    return crawl_fn
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 바이오인 크롤러  (bioin.or.kr)
+# ══════════════════════════════════════════════════════════════════════════════
+
+BIOIN_BASE_URL = "https://www.bioin.or.kr"
+
+
+def bioin_search(session: requests.Session, keyword: str, target_dates: list[str]) -> list[dict]:
+    """
+    bioin.or.kr 전체 동향 게시판(bid=tot_trend) 키워드 검색.
+    리스트 구조: ul.blog_list > li / 날짜: span.date (작성일)
+    """
+    results, seen = [], set()
+    for page in range(1, 10):
+        resp = session.get(
+            BIOIN_BASE_URL + "/board.do",
+            params={"cmd": "list", "bid": "tot_trend",
+                    "s_key": "subject_content", "s_str": keyword, "cPage": page},
+            headers={**HEADERS, "Referer": BIOIN_BASE_URL},
+            timeout=10,
+        )
+        soup = BeautifulSoup(resp.text, "html.parser")
+        found_any = stop = False
+        for li in soup.select("ul.blog_list > li"):
+            a_tag = li.select_one("a[href*='cmd=view']")
+            if not a_tag:
+                continue
+            href  = a_tag.get("href", "")
+            url   = BIOIN_BASE_URL + href if href.startswith("/") else href
+            if url in seen:
+                continue
+            seen.add(url)
+            title_el = li.select_one("strong.title")
+            title    = title_el.get_text(strip=True) if title_el else ""
+            date_el  = li.select_one("span.date")   # 첫 번째 = 작성일
+            date     = date_el.get_text(strip=True) if date_el else ""
+            if not date:
+                continue
+            if date in target_dates:
+                found_any = True
+                results.append({"날짜": date, "URL": url, "제목": title})
+            elif date < min(target_dates):
+                stop = True
+                break
+        if stop or not found_any:
+            break
+        time.sleep(0.3)
+    print(f"  [바이오인/{keyword}] {len(results)}건")
+    return results
+
+
+def bioin_crawl_article(session: requests.Session, info: dict) -> dict:
+    url = info["URL"]
+    try:
+        resp    = session.get(url, headers={**HEADERS, "Referer": BIOIN_BASE_URL}, timeout=10)
+        soup    = BeautifulSoup(resp.text, "html.parser")
+        body_el = soup.select_one("article.board_view")
+        title   = info.get("제목", "")
+        date    = info.get("날짜", "")
+        body    = ""
+        if body_el:
+            h = body_el.select_one("h2.title")
+            if h:
+                title = h.get_text(strip=True)
+            date_span = body_el.select_one("li.date span")
+            if date_span:
+                date = date_span.get_text(strip=True)
+            contents = body_el.select_one(".contents")
+            if contents:
+                for tag in contents.select("script, style"):
+                    tag.decompose()
+                for c in contents.find_all(string=lambda t: isinstance(t, Comment)):
+                    c.extract()
+                for tag in contents.find_all(True):
+                    if tag.name == "img":
+                        tag.attrs = {k: v for k, v in {"src": tag.get("src", ""), "alt": tag.get("alt", "")}.items() if v}
+                    else:
+                        for attr in ["style", "class", "id"]:
+                            if tag.get(attr):
+                                del tag[attr]
+                body = str(contents)
+        return {"제목": title, "날짜": date, "본문": body,
+                "유료기사": "[유료]" if not body or len(body) < 100 else "", "URL": url}
+    except Exception as e:
+        return {"제목": info.get("제목", ""), "날짜": info.get("날짜", ""), "본문": f"[오류] {e}",
+                "유료기사": "", "URL": url}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# KDDF 크롤러  (kddf.org / 국가신약개발재단)
+# ══════════════════════════════════════════════════════════════════════════════
+
+KDDF_BASE_URL = "https://kddf.org"
+KDDF_BOARDS   = ["/ko/board/research", "/ko/board/press"]
+
+
+def kddf_search(session: requests.Session, keyword: str, target_dates: list[str]) -> list[dict]:
+    """
+    KDDF는 서버 검색 없음 → 게시판 목록에서 제목 키워드 매칭 후 기사 페이지에서 날짜 확인.
+    리스트 구조: .news_list_ob / 날짜: 기사 페이지의 .view_date li (YYYY.MM.DD)
+    """
+    results, seen = [], set()
+    kw_lower = keyword.lower()
+    for board in KDDF_BOARDS:
+        try:
+            resp = session.get(
+                KDDF_BASE_URL + board,
+                headers={**HEADERS, "Referer": KDDF_BASE_URL},
+                timeout=10,
+            )
+            soup = BeautifulSoup(resp.text, "html.parser")
+        except Exception:
+            continue
+        for item in soup.select(".news_list_ob"):
+            a_tag = item.select_one("a[href*='view']")
+            if not a_tag:
+                continue
+            href  = a_tag.get("href", "")
+            url   = href if href.startswith("http") else KDDF_BASE_URL + href
+            # URL 정규화 (// 제거)
+            url   = url.replace("kddf.org//", "kddf.org/")
+            if url in seen:
+                continue
+            h2    = item.select_one("h2")
+            title = h2.get_text(strip=True) if h2 else ""
+            # 제목에 키워드 없으면 건너뜀 (서버 검색 대체)
+            if kw_lower not in title.lower():
+                continue
+            seen.add(url)
+            # 기사 페이지에서 날짜 확인
+            try:
+                art_resp = session.get(
+                    url, headers={**HEADERS, "Referer": KDDF_BASE_URL + board}, timeout=10
+                )
+                art_soup = BeautifulSoup(art_resp.text, "html.parser")
+                date     = ""
+                date_li  = art_soup.select_one(".view_date li")
+                if date_li:
+                    m = re.search(r"(\d{4})\.(\d{2})\.(\d{2})", date_li.get_text())
+                    if m:
+                        date = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+                if date in target_dates:
+                    results.append({"날짜": date, "URL": url, "제목": title})
+            except Exception:
+                pass
+            time.sleep(0.3)
+    print(f"  [KDDF/{keyword}] {len(results)}건")
+    return results
+
+
+def kddf_crawl_article(session: requests.Session, info: dict) -> dict:
+    url = info["URL"]
+    try:
+        resp    = session.get(url, headers={**HEADERS, "Referer": KDDF_BASE_URL}, timeout=10)
+        soup    = BeautifulSoup(resp.text, "html.parser")
+        title   = info.get("제목", "")
+        for h2 in soup.select("h2"):
+            t = h2.get_text(strip=True)
+            if len(t) > 10:
+                title = t
+                break
+        date    = info.get("날짜", "")
+        date_li = soup.select_one(".view_date li")
+        if date_li:
+            m = re.search(r"(\d{4})\.(\d{2})\.(\d{2})", date_li.get_text())
+            if m:
+                date = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        body    = ""
+        body_el = soup.select_one(".view_cont")
+        if body_el:
+            for tag in body_el.select("script, style"):
+                tag.decompose()
+            for c in body_el.find_all(string=lambda t: isinstance(t, Comment)):
+                c.extract()
+            for tag in body_el.find_all(True):
+                if tag.name == "img":
+                    tag.attrs = {k: v for k, v in {"src": tag.get("src", ""), "alt": tag.get("alt", "")}.items() if v}
+                else:
+                    for attr in ["style", "class", "id"]:
+                        if tag.get(attr):
+                            del tag[attr]
+            body = str(body_el)
+        return {"제목": title, "날짜": date, "본문": body,
+                "유료기사": "[유료]" if not body or len(body) < 100 else "", "URL": url}
+    except Exception as e:
+        return {"제목": info.get("제목", ""), "날짜": info.get("날짜", ""), "본문": f"[오류] {e}",
+                "유료기사": "", "URL": url}
+
+
+# 팩토리 인스턴스 (SITES 등록용)
+_biotimes_search    = make_newscms_search("https://www.biotimes.co.kr",    "바이오타임즈")
+_biotimes_crawl     = make_newscms_crawl ("https://www.biotimes.co.kr",    "바이오타임즈")
+_pharmatimes_search = make_newscms_search("https://www.pharmatimes.co.kr", "파마타임즈")
+_pharmatimes_crawl  = make_newscms_crawl ("https://www.pharmatimes.co.kr", "파마타임즈")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ★ 2. 사이트 설정  ← 새 사이트 추가 시 여기에 등록
 # ══════════════════════════════════════════════════════════════════════════════
 #
@@ -413,6 +731,50 @@ SITES = [
         "login_fn":       None,
         "search_fn":      thebio_search,
         "crawl_fn":       thebio_crawl_article,
+        "email_body":     False,
+    },
+    {
+        "name":           "바이오타임즈",
+        "badge_color":    "#7a3e00",
+        "badge_bg":       "#fff3e0",
+        "badge_border":   "#ffcc80",
+        "requires_login": False,
+        "login_fn":       None,
+        "search_fn":      _biotimes_search,
+        "crawl_fn":       _biotimes_crawl,
+        "email_body":     False,
+    },
+    {
+        "name":           "파마타임즈",
+        "badge_color":    "#5c007a",
+        "badge_bg":       "#f3e5f5",
+        "badge_border":   "#ce93d8",
+        "requires_login": False,
+        "login_fn":       None,
+        "search_fn":      _pharmatimes_search,
+        "crawl_fn":       _pharmatimes_crawl,
+        "email_body":     False,
+    },
+    {
+        "name":           "바이오인",
+        "badge_color":    "#006064",
+        "badge_bg":       "#e0f7fa",
+        "badge_border":   "#80deea",
+        "requires_login": False,
+        "login_fn":       None,
+        "search_fn":      bioin_search,
+        "crawl_fn":       bioin_crawl_article,
+        "email_body":     False,
+    },
+    {
+        "name":           "KDDF",
+        "badge_color":    "#1b5e20",
+        "badge_bg":       "#e8f5e9",
+        "badge_border":   "#a5d6a7",
+        "requires_login": False,
+        "login_fn":       None,
+        "search_fn":      kddf_search,
+        "crawl_fn":       kddf_crawl_article,
         "email_body":     False,
     },
     # ── 새 사이트는 여기에 추가 ──────────────────────────────────────────────
