@@ -388,19 +388,26 @@ def thebio_crawl_article(session: requests.Session, info: dict) -> dict:
         body    = ""
         body_el = soup.select_one("#article-view-content-div")
         if body_el:
-            # 불필요 요소 제거
-            for tag in body_el.select("script, style, .ad, .related, figure.photo-layout"):
+            # 불필요 요소 제거 (figure.photo-layout은 유지 — 기사 사진 포함)
+            for tag in body_el.select("script, style, .ad, .related"):
                 tag.decompose()
             for comment in body_el.find_all(string=lambda t: isinstance(t, Comment)):
                 comment.extract()
             for tag in body_el.find_all(['p', 'div']):
                 if not tag.get_text(strip=True) and not tag.find('img'):
                     tag.decompose()
-            # 인라인 style/class 제거
+            # 인라인 style/class 제거 (img의 src/alt, figcaption은 보존)
             for tag in body_el.find_all(True):
-                if tag.get("style"): del tag["style"]
-                if tag.get("class"): del tag["class"]
-                if tag.get("id"):    del tag["id"]
+                if tag.name == "img":
+                    # src, alt만 남기고 나머지 제거
+                    attrs = {"src": tag.get("src", ""), "alt": tag.get("alt", "")}
+                    tag.attrs = {k: v for k, v in attrs.items() if v}
+                elif tag.name == "figcaption":
+                    tag.attrs = {}
+                else:
+                    if tag.get("style"): del tag["style"]
+                    if tag.get("class"): del tag["class"]
+                    if tag.get("id"):    del tag["id"]
             body = str(body_el)
 
         is_paid = "[유료]" if not body or len(body) < 100 else ""
