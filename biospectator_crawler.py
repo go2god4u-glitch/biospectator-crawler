@@ -791,7 +791,7 @@ SITES = [
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _render_also_in(also_in: list[dict]) -> str:
-    """카드 하단 '다른 사이트에서도 보도' 섹션 HTML 생성"""
+    """기사 제목 위 '다른 사이트에서도 보도' 배너 HTML 생성"""
     if not also_in:
         return ""
     links = " &nbsp;·&nbsp; ".join(
@@ -828,13 +828,13 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
             cards += f"""
             <article class="card">
                 <div class="card-header">
+                    {_render_also_in(a.get("also_in", []))}
                     <h2>{src_badge}<a href="{a['URL']}" target="_blank">{a['제목']}</a>{paid_badge}</h2>
                     <span class="date">{a['날짜']}</span>
                 </div>
                 <div class="card-body">{body_html}</div>
                 <div class="card-footer">
                     <a href="{a['URL']}" target="_blank">원문 보기 &rarr;</a>
-                    {_render_also_in(a.get("also_in", []))}
                 </div>
             </article>"""
         sections_html += f"""
@@ -882,7 +882,7 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   mark {{ background: #ffff00; padding: 0 2px; font-style: normal; }}
   .paid {{ color: #999; font-style: italic; }}
   .no-articles {{ color: #999; font-size: 14px; padding: 20px; }}
-  .also-in {{ margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; font-size: 12px; color: #666; }}
+  .also-in {{ margin-bottom: 6px; padding: 5px 10px; background: #fffbe6; border-left: 3px solid #f5a623; font-size: 12px; color: #666; border-radius: 3px; }}
 </style>
 </head>
 <body>
