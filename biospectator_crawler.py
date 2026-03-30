@@ -999,10 +999,15 @@ def send_email(target_dates: list[str], articles: list[dict]):
         </div>"""
         msg.attach(MIMEText(body, "html", "utf-8"))
         try:
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
-                server.starttls()
-                server.login(gmail_from, app_pw)
-                server.send_message(msg)
+            try:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+                    server.login(gmail_from, app_pw)
+                    server.send_message(msg)
+            except Exception:
+                with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+                    server.starttls()
+                    server.login(gmail_from, app_pw)
+                    server.send_message(msg)
             print(f"[OK] 0건 알림 이메일 발송 → {gmail_to}")
         except Exception as e:
             print(f"[FAIL] 이메일 발송 실패: {e}")
