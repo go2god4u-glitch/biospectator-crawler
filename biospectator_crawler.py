@@ -1042,7 +1042,7 @@ def send_email(target_dates: list[str], articles: list[dict]):
     <div style="font-family:'Malgun Gothic',sans-serif;text-align:center;padding:24px;background:#1a3a5c;">
       <span style="font-size:18px;font-weight:bold;color:#7ecfff;">바이오 키워드 리포트</span>
       <span style="color:#aac;font-size:12px;margin-left:16px;">{date_label} &nbsp;|&nbsp; 총 {len(articles)}건</span><br><br>
-      <a href="{PAGES_URL}" target="_blank"
+      <a href="{PAGES_URL}?v={datetime.now().strftime('%Y%m%d%H%M')}" target="_blank"
          style="display:inline-block;padding:12px 28px;background:#0077cc;color:#fff;
                 text-decoration:none;border-radius:6px;font-size:15px;font-weight:bold;">
         📰 브라우저에서 열기 (전체 기사)
