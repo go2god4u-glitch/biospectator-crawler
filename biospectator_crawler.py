@@ -261,11 +261,12 @@ BIOS_SEARCH_URL = BIOS_BASE_URL + "/section/search_list?searchkey={keyword}&page
 
 
 def bios_login(session: requests.Session) -> bool:
-    user_id  = os.getenv("BIOS_ID")
-    password = os.getenv("BIOS_PW")
+    user_id  = os.getenv("BIOS_ID", "").strip()
+    password = os.getenv("BIOS_PW", "").strip()
     if not user_id or not password:
-        user_id  = input("BioSpectator 아이디: ").strip()
-        password = input("BioSpectator 비밀번호: ").strip()
+        # 자동화 환경(작업 스케줄러/GitHub Actions)에서 input() 사용 불가 → 즉시 실패 처리
+        print("[ERROR] 환경변수 BIOS_ID / BIOS_PW 미설정 → .env 파일 확인")
+        return False
     session.get("https://member.biospectator.com/login.php", headers=HEADERS)
     session.post(
         BIOS_LOGIN_URL,
