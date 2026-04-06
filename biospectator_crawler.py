@@ -867,6 +867,8 @@ def _render_also_in(also_in: list[dict]) -> str:
 def save_html(articles: list[dict], target_dates: list[str]) -> str:
     os.makedirs("docs", exist_ok=True)
 
+    today = target_dates[0]  # 가장 최신 날짜
+
     by_keyword = defaultdict(list)
     for a in articles:
         if a["URL"] not in {x["URL"] for x in by_keyword[a["키워드"]]}:
@@ -878,9 +880,12 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
         for s in SITES if any(a["출처"] == s["name"] for a in articles)
     )
 
+    today_count = sum(1 for a in articles if a.get("날짜", "").startswith(today))
+
     sections_html = ""
     for idx, (kw, arts) in enumerate(by_keyword.items()):
         cards = ""
+        prev_date_group = None  # 날짜 구분선 추적
         for a in arts:
             body_html  = highlight_keywords(a["본문"]) if a["본문"] else "<span class='paid'>유료기사 - 전문 열람 불가</span>"
             paid_badge = '<span class="badge" style="background:#fff0f0;color:#c00;border:1px solid #fcc;">유료</span>' if a["유료기사"] else ""
@@ -890,12 +895,24 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
                 f'<span class="badge event-badge">{tag}</span>'
                 for tag in detect_event_tags(a["본문"] or "")
             )
+            # 오늘 기사 여부
+            art_date = a.get("날짜", "")
+            is_today = art_date.startswith(today)
+            new_badge = '<span class="badge new-badge">NEW</span>' if is_today else ""
+            card_class = "card card-today" if is_today else "card card-old"
+
+            # 날짜 구분선: 오늘 → 이전 전환 시점에 구분자 삽입
+            date_group = "today" if is_today else "old"
+            if prev_date_group == "today" and date_group == "old":
+                cards += '<div class="date-divider">&#8212; 이전 날짜 기사 &#8212;</div>'
+            prev_date_group = date_group
+
             cards += f"""
-            <article class="card">
+            <article class="{card_class}">
                 <div class="card-header">
                     {_render_also_in(a.get("also_in", []))}
-                    <h2>{src_badge}<a href="{a['URL']}" target="_blank">{a['제목']}</a>{paid_badge}{event_badges}</h2>
-                    <span class="date">{a['날짜']}</span>
+                    <h2>{src_badge}<a href="{a['URL']}" target="_blank">{a['제목']}</a>{new_badge}{paid_badge}{event_badges}</h2>
+                    <span class="date">{art_date}</span>
                 </div>
                 <div class="card-body">{body_html}</div>
                 <div class="card-footer">
@@ -915,6 +932,12 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
         for i, (k, v) in enumerate(by_keyword.items())
     )
 
+    # 업데이트 상태 배너: 오늘 기사가 있으면 초록, 없으면 주황 경고
+    if today_count > 0:
+        status_banner = f'<div class="status-banner status-fresh">✔ {today} 기사 {today_count}건 &nbsp;|&nbsp; 마지막 업데이트: {generated}</div>'
+    else:
+        status_banner = f'<div class="status-banner status-stale">⚠ {today} 새 기사 없음 &nbsp;|&nbsp; 아래는 이전 날짜 기사입니다 &nbsp;|&nbsp; 마지막 업데이트: {generated}</div>'
+
     html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -929,9 +952,14 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   .top-bar .meta {{ color: #aac; }}
   .top-bar .src-count {{ font-size: 11px; color: #cce; }}
   .top-bar .links {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+  .status-banner {{ padding: 10px 24px; font-size: 13px; font-weight: bold; text-align: center; }}
+  .status-fresh {{ background: #e6f4ea; color: #1a7a3c; border-bottom: 2px solid #a8d5b5; }}
+  .status-stale  {{ background: #fff3e0; color: #b34d00; border-bottom: 2px solid #ffcc80; }}
   .wrap {{ max-width: 900px; margin: 0 auto; padding: 24px 20px; }}
   .section-title {{ font-size: 20px; color: #1a3a5c; border-left: 5px solid #0077cc; padding-left: 12px; margin: 32px 0 16px; }}
   .card {{ background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }}
+  .card-today {{ border-left: 4px solid #0077cc; }}
+  .card-old {{ border-left: 4px solid #ddd; opacity: 0.85; }}
   .card-header {{ padding: 12px 20px 8px; border-bottom: 1px solid #eee; }}
   .card-header h2 {{ font-size: 17px; line-height: 1.5; }}
   .card-header h2 a {{ color: #1a3a5c; text-decoration: none; }}
@@ -944,7 +972,9 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
   .card-footer {{ padding: 10px 20px; background: #f8f9fb; font-size: 13px; border-radius: 0 0 8px 8px; }}
   .card-footer a {{ color: #0077cc; text-decoration: none; }}
   .badge {{ font-size: 11px; padding: 2px 7px; border-radius: 10px; margin-right: 4px; vertical-align: middle; font-weight: bold; }}
+  .new-badge {{ background: #0077cc; color: #fff; }}
   .event-badge {{ background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }}
+  .date-divider {{ text-align: center; color: #aaa; font-size: 12px; margin: 8px 0 20px; letter-spacing: 2px; }}
   mark {{ background: #ffff00; padding: 0 2px; font-style: normal; }}
   .paid {{ color: #999; font-style: italic; }}
   .no-articles {{ color: #999; font-size: 14px; padding: 20px; }}
@@ -954,10 +984,11 @@ def save_html(articles: list[dict], target_dates: list[str]) -> str:
 <body>
 <div id="top" class="top-bar">
   <span class="logo">바이오 뉴스</span>
-  <span class="meta">{generated} &nbsp;|&nbsp; {date_label} &nbsp;|&nbsp; 전체 {len(articles)}건</span>
+  <span class="meta">{date_label} &nbsp;|&nbsp; 전체 {len(articles)}건</span>
   <span class="src-count">{src_counts}</span>
   <div class="links">{header_links}</div>
 </div>
+{status_banner}
 <div class="wrap">
 {sections_html if sections_html else '<p class="no-articles">오늘 날짜 기사가 없습니다.</p>'}
 </div>
@@ -1164,13 +1195,6 @@ def main():
         send_email(target_dates, [])
         return
 
-    # 이메일용: 이미 발송된 기사 제외 (중복 방지)
-    sent_urls  = load_sent_urls()
-    new_infos  = [i for i in all_infos if i["URL"] not in sent_urls]
-    skipped    = len(all_infos) - len(new_infos)
-    if skipped:
-        print(f"\n  → 이미 발송된 기사 {skipped}건 제외 (이메일에서만 제외, HTML엔 포함)")
-
     # 사이트별 건수 출력
     cnt_str = " / ".join(
         f'{s["name"]} {sum(1 for i in all_infos if i["출처"]==s["name"])}건'
@@ -1204,11 +1228,7 @@ def main():
     print(f"\n[OK] 저장 완료: {html_path}")
     print(f"  전체: {len(articles)}건 (전문: {len(articles)-paid}건 / 유료: {paid}건)")
 
-    # 이메일은 새 기사만 발송
-    new_urls     = {i["URL"] for i in new_infos}
-    email_articles = [a for a in articles if a["URL"] in new_urls]
-    save_sent_urls([a["URL"] for a in email_articles], sent_urls)
-    send_email(target_dates, email_articles)
+    send_email(target_dates, articles)
 
 
 if __name__ == "__main__":
