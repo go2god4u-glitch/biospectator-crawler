@@ -64,6 +64,13 @@
 ================================================================================
 """
 
+import sys
+# Windows 작업 스케줄러 실행 시 콘솔이 CP949 — UTF-8로 강제해 UnicodeEncodeError 방지
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import requests
 from bs4 import BeautifulSoup, NavigableString, Comment
 from datetime import datetime, timedelta
@@ -405,7 +412,7 @@ def thebio_crawl_article(session: requests.Session, info: dict) -> dict:
         resp    = session.get(url, headers={**HEADERS, "Referer": THEBIO_BASE_URL}, timeout=10)
         soup    = BeautifulSoup(resp.text, "html.parser")
         h1      = soup.select_one("h1.heading") or soup.select_one(".heading")
-        title   = h1.get_text(strip=True) if h1 else ""
+        title   = (h1.get_text(strip=True) if h1 else "").replace("\ufeff", "").strip()
         date    = info.get("날짜", "")
         info_ul = soup.select_one("ul.infomation")
         if info_ul:
